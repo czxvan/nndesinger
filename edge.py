@@ -45,14 +45,6 @@ class GraphicEdge(QGraphicsPathItem):
         return path
 
     # override
-    def boundingRect(self):
-        return self.shape().boundingRect()
-
-    # override
-    def shape(self):
-        return self.calcPath()
-
-    # override
     def paint(self, painter, graphics_item, widget=None):
         self.setPath(self.calcPath())  # 设置路径
         path = self.path()

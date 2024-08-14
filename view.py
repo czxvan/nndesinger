@@ -92,36 +92,18 @@ class DataflowView(QGraphicsView):
                     self.edgeDragEnd(item)
                     print("edge create success")
                 else:
-                    self.drag_edge.remove()
-                    self.drag_edge = None
+                    if self.drag_edge is not None:
+                        self.drag_edge.remove()
+                        self.drag_edge = None
                     print("edge create failed")
             except Exception as error:
                 print(error)
                 QMessageBox.warning(self, '提示', '连接失败，请重试！')
-        else:
-            super().mouseReleaseEvent(event)
+        super().mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
-        """
-            TODO 解决箭头直线随光标移动update过于频繁导致程序崩溃问题，当前解决方法尚不完善
-        """
-        # 实时更新edge
-        pos = event.pos()
-        change_flag = False
-
-        if self.pre_position is None:
-            self.pre_position = pos
-
-        # 为edge的update添加限制
-        # 减少update次数
-        if math.sqrt(math.pow((pos.x() - self.pre_position.x()), 2) + math.pow((pos.y() - self.pre_position.y()),
-                                                                               2)) > 10:
-            import time
-            print(time.time(), "change is true")
-            change_flag = True
-            self.pre_position = pos
-
-        if self.edge_enable and self.drag_edge is not None and change_flag:
+        if self.edge_enable and self.drag_edge is not None:
+            pos = event.pos()
             sc_pos = self.mapToScene(pos)
             self.drag_edge.gr_edge.setEndPosition(sc_pos.x(), sc_pos.y())
             self.drag_edge.gr_edge.update()

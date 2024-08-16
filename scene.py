@@ -15,10 +15,11 @@ class GraphicScene(QGraphicsScene):
     def removeNode(self, node):
         # remove all info about this node
         self.nodes.remove(node)
+        childItems = node.childItems()
         edges_to_delete = []
         # 删除图元时，遍历与其连接的线，并移除
         for edge in self.edges:
-            if edge.edge_wrap.start_item is node or edge.edge_wrap.end_item is node:
+            if edge.edge_wrap.start_item in childItems or edge.edge_wrap.end_item in childItems:
                 edges_to_delete.append(edge)
         for edge in edges_to_delete:
             self.removeEdge(edge)

@@ -1,10 +1,51 @@
 from PyQt5.QtCore import QSize, QRectF, Qt
-from PyQt5.QtGui import QPainterPath, QBrush, QPen, QFont, QTextOption
-from PyQt5.QtWidgets import QGraphicsRectItem, QGraphicsItem, QGraphicsTextItem, QStyle
+from PyQt5.QtGui import QPainter, QPainterPath, QBrush, QPen, QFont, QTextOption, QColor
+from PyQt5.QtWidgets import QGraphicsRectItem, QGraphicsItem, QGraphicsSceneHoverEvent, QGraphicsSceneMouseEvent, QGraphicsTextItem, QGraphicsEllipseItem, QStyle, QStyleOptionGraphicsItem, QWidget
 from torch import nn
 
 # from store import property as store_property
 # from store import storex
+
+class EndItem(QGraphicsEllipseItem):
+    RADIUS = 5
+    INPUT = 0
+    OUTPUT = 1
+    def __init__(self, x, y, type=INPUT, parent=None):
+        super().__init__(parent)
+        self.type = type
+        self.is_hovered = False
+        self.setRect(x, y, EndItem.RADIUS * 2, EndItem.RADIUS * 2)
+        self.setAcceptHoverEvents(True)
+
+    def paint(self, painter, option, widget):
+        if self.parentItem().is_hovered:
+            painter.setPen(QPen(Qt.black, 1))
+            painter.setBrush(QBrush(Qt.white))
+        else:
+            painter.setPen(Qt.NoPen)
+        painter.drawEllipse(self.rect())
+        if self.is_hovered:
+            painter.setPen(QPen(QColor(0, 0, 0, 150), 1))
+            if self.type == EndItem.INPUT:
+                painter.drawText(self.rect().adjusted(-20, -2.5, -10, 2.5), "in")
+            else:
+                painter.drawText(self.rect().adjusted(15, -2.5, 25, 2.5), "out")
+
+    def getCenterPos(self):
+        return self.mapToScene(self.rect().center())
+
+    def setHoveredAndUpdate(self, is_hovered):
+        if self.is_hovered != is_hovered:
+            self.is_hovered = is_hovered
+            self.update()
+
+    def hoverEnterEvent(self, event):
+        self.setHoveredAndUpdate(True)
+        return super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self, event):
+        self.setHoveredAndUpdate(False)
+        return super().hoverLeaveEvent(event)
 
 class TextItem(QGraphicsTextItem):
     def __init__(self, text, parent=None):
@@ -30,7 +71,7 @@ class BaseItem(QGraphicsRectItem):
     set QGraphicsItem size and basic function.
     """
 
-    def __init__(self, text):
+    def __init__(self, text, inputs_num=1, outputs_num=1):
         self.text = text
         self.width = 60
         self.height = 60
@@ -44,12 +85,30 @@ class BaseItem(QGraphicsRectItem):
         self.layer_property = {}
 
         self.default_pen = QPen(Qt.darkGray, 1)
-        self.selected_pen = QPen(Qt.black, 1, Qt.DashLine)
+        self.hovered_pen = QPen(Qt.black, 1.5)
+        self.selected_pen = QPen(Qt.darkBlue, 2)
         self.setFlag(QGraphicsItem.ItemIsMovable)
         self.setFlag(QGraphicsItem.ItemIsSelectable)
         self.setAcceptedMouseButtons(Qt.LeftButton)
+        self.setAcceptHoverEvents(True)
 
         self.text_item = TextItem(self.text, self)
+
+        self.inputs_num = inputs_num
+        self.outputs_num = outputs_num
+        self.is_hovered = False
+        self.createEnds()
+
+    def createEnds(self):
+        radius = EndItem.RADIUS
+        # create input ends
+        step = self.height / (self.inputs_num + 1)
+        for i in range(self.inputs_num):
+            EndItem(-radius, step * (i + 1) - radius, EndItem.INPUT, self)
+        # create output ends
+        step = self.height / (self.outputs_num + 1)
+        for i in range(self.outputs_num):
+            EndItem(self.width-radius, step * (i + 1) - radius, EndItem.OUTPUT,self)
 
     def setUuid(self, uuid):
         self.uuid = uuid
@@ -63,9 +122,24 @@ class BaseItem(QGraphicsRectItem):
         painter.fillPath(path, QBrush(Qt.gray))
         if option.state & QStyle.State_Selected:
             painter.setPen(self.selected_pen)
+        elif self.is_hovered:
+            painter.setPen(self.hovered_pen)
         else:
             painter.setPen(self.default_pen)
         painter.drawPath(path)
+
+    def setHoveredAndUpdate(self, is_hovered):
+        if self.is_hovered != is_hovered:
+            self.is_hovered = is_hovered
+            self.update()
+
+    def hoverEnterEvent(self, event):
+        self.setHoveredAndUpdate(True)
+        super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self, event):
+        self.setHoveredAndUpdate(False)
+        super().hoverLeaveEvent(event)
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)

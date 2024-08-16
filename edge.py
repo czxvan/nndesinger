@@ -57,7 +57,7 @@ class GraphicEdge(QGraphicsPathItem):
         else:
             x1, y1 = self.pos_src
             x2, y2 = self.pos_dst
-            length = 30  # 圆点距离终点图元的距离
+            length = 0.5  # 圆点距离终点图元的距离
             k = math.atan2(y2 - y1, x2 - x1)  # theta
             new_x = x2 - length * math.cos(k)  # 减去线条自身的宽度
             new_y = y2 - length * math.sin(k)
@@ -103,17 +103,15 @@ class Edge:
 
     # 更新位置
     def updatePositions(self):
-        # src_pos 记录的是开始图元的位置，此位置为图元的左上角
-        src_pos = self.start_item.pos()
-        # 想让线条从图元的中心位置开始，让他们都加上偏移
-        patch = self.start_item.width / 2
-        self.gr_edge.setStartPosition(src_pos.x() + patch, src_pos.y() + patch)
+        # src_pos 记录的是开始图元的位置，此位置为图元的中心
+        src_pos = self.start_item.getCenterPos()
+        self.gr_edge.setStartPosition(src_pos.x(), src_pos.y())
         # 如果结束位置图元也存在，则做同样操作
         if self.end_item is not None:
-            end_pos = self.end_item.pos()
-            self.gr_edge.setEndPosition(end_pos.x() + patch, end_pos.y() + patch)
+            end_pos = self.end_item.getCenterPos()
+            self.gr_edge.setEndPosition(end_pos.x(), end_pos.y())
         else:
-            self.gr_edge.setEndPosition(src_pos.x() + patch, src_pos.y() + patch)
+            self.gr_edge.setEndPosition(src_pos.x(), src_pos.y())
         self.gr_edge.update()
 
     def removeFromCurrentItems(self):

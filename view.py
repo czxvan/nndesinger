@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QGraphicsView, QGraphicsItem, QGraphicsPixmapItem, Q
 
 from edge import Edge
 from scene import GraphicScene
-from item import getLayer, BaseItem, TextItem
+from item import getLayer, BaseItem, TextItem, EndItem
 
 class DataflowView(QGraphicsView):
     def __init__(self, graphic_scene=None, parent=None):
@@ -60,8 +60,8 @@ class DataflowView(QGraphicsView):
         # 拖拽结束
         Edge(self.gr_scene, self.drag_start_item, item)
         # 更新layer的in_list与out_list
-        self.drag_start_item.out_list.append(item.uuid)
-        item.in_list.append(self.drag_start_item.uuid)
+        self.drag_start_item.parentItem().out_list.append(item.parentItem().uuid)
+        item.parentItem().in_list.append(self.drag_start_item.parentItem().uuid)
         # 判断drag不为空
         if self.drag_edge is None:
             return
@@ -70,14 +70,15 @@ class DataflowView(QGraphicsView):
         self.drag_edge = None
 
     def mousePressEvent(self, event):
-        item = self.getBaseItemAtClick(event)
         # 单击鼠标右键删除layer
         if event.button() == Qt.RightButton:
+            item = self.getBaseItemAtClick(event)
             if isinstance(item, BaseItem):
                 self.gr_scene.removeNode(item)
         # 按住鼠标左键开始拖拽生成edge
         elif self.edge_enable:
-            if isinstance(item, BaseItem):
+            item = self.getEndItemAtClick(event)
+            if isinstance(item, EndItem) and item.type == EndItem.OUTPUT:
                 # 确认起点是图元后，开始拖拽
                 self.edgeDragStart(item)
         else:
@@ -89,9 +90,9 @@ class DataflowView(QGraphicsView):
             try:
                 # 拖拽结束后，关闭连线功能
                 self.edge_enable = False
-                item = self.getBaseItemAtClick(event)
+                item = self.getEndItemAtClick(event)
                 # 终点图元不能是起点图元
-                if isinstance(item, BaseItem) and item is not self.drag_start_item:
+                if isinstance(item, EndItem) and item is not self.drag_start_item and item.type == EndItem.INPUT:
                     self.edgeDragEnd(item)
                     print("edge create success")
                 else:
@@ -112,7 +113,21 @@ class DataflowView(QGraphicsView):
             sc_pos = self.mapToScene(pos)
             self.drag_edge.gr_edge.setEndPosition(sc_pos.x(), sc_pos.y())
             self.drag_edge.gr_edge.update()
+        self.updateHoveredState(event)
         super().mouseMoveEvent(event)
+
+    def updateHoveredState(self, event):
+        # 扩大图元对mouseHovered事件的检测范围
+        center = event.pos()
+        radius = 10
+        surrounding_items = self.items(center.x() - radius, center.y() - radius,
+                                        radius * 2, radius * 2, Qt.IntersectsItemShape)
+        for item in self.items():
+            if isinstance(item, BaseItem):
+                if item in surrounding_items:
+                    item.setHoveredAndUpdate(True)
+                else:
+                    item.setHoveredAndUpdate(False)
 
     def getItemsAtRubberSelect(self):
         area = self.rubberBandRect()
@@ -131,4 +146,11 @@ class DataflowView(QGraphicsView):
             return item
         elif isinstance(item, TextItem):
             return item.parentItem()
+        return None
+
+    def getEndItemAtClick(self, event: QEvent) -> EndItem:
+        pos = event.pos()
+        item = self.itemAt(pos)
+        if isinstance(item, EndItem):
+            return item
         return None

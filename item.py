@@ -1,28 +1,55 @@
 from PyQt5.QtCore import QSize, QRectF, Qt
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import QGraphicsPixmapItem, QGraphicsItem
+from PyQt5.QtGui import QPainterPath, QBrush, QPen, QFont, QTextOption
+from PyQt5.QtWidgets import QGraphicsRectItem, QGraphicsItem, QGraphicsTextItem, QStyle
 from torch import nn
 
+# from store import property as store_property
+# from store import storex
 
-class BaseItem(QGraphicsPixmapItem):
+class TextItem(QGraphicsTextItem):
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        if len(text) > 9:
+            self.setFont(QFont('Arial', 10))
+        elif len(text) > 6:
+            self.setFont(QFont('Arial', 11))
+        else:
+            self.setFont(QFont('Arial', 12))
+        self.setDefaultTextColor(Qt.white)
+        self.setTextWidth(parent.boundingRect().width())
+
+        parent_rect = parent.boundingRect()
+        text_rect = self.boundingRect()
+        self.setPos(parent.x() + (parent_rect.width() - text_rect.width()) / 2,
+                    parent.y() + (parent_rect.height() - text_rect.height()) / 2)
+
+        self.document().setDefaultTextOption(QTextOption(Qt.AlignCenter))
+
+class BaseItem(QGraphicsRectItem):
     """
     set QGraphicsItem size and basic function.
     """
 
-    def __init__(self, icon_path, ):
-        super(BaseItem, self).__init__()
-        self.pix = QPixmap(icon_path).scaled(QSize(60, 60))
-        self.in_list = []
-        self.out_list = []
-        self.layer_name = None
+    def __init__(self, text):
+        self.text = text
         self.width = 60
         self.height = 60
+        self.corner_radius = 10
+        self.text_padding = 2
+        super(BaseItem, self).__init__(0, 0, self.width, self.height)
+
         self.uuid = None
-        self.setPixmap(self.pix)
-        self.setAcceptedMouseButtons(Qt.LeftButton)
-        self.setFlag(QGraphicsItem.ItemIsSelectable)
-        self.setFlag(QGraphicsItem.ItemIsMovable)
+        self.in_list = []
+        self.out_list = []
         self.layer_property = {}
+
+        self.default_pen = QPen(Qt.darkGray, 1)
+        self.selected_pen = QPen(Qt.black, 1, Qt.DashLine)
+        self.setFlag(QGraphicsItem.ItemIsMovable)
+        self.setFlag(QGraphicsItem.ItemIsSelectable)
+        self.setAcceptedMouseButtons(Qt.LeftButton)
+
+        self.text_item = TextItem(self.text, self)
 
     def setUuid(self, uuid):
         self.uuid = uuid
@@ -30,8 +57,15 @@ class BaseItem(QGraphicsPixmapItem):
     def setLayerName(self, name):
         self.layer_name = name
 
-    def boundingRect(self):
-        return QRectF(0, 0, 60, 60)
+    def paint(self, painter, option, widget):
+        path = QPainterPath()
+        path.addRoundedRect(self.boundingRect(), self.corner_radius, self.corner_radius)
+        painter.fillPath(path, QBrush(Qt.gray))
+        if option.state & QStyle.State_Selected:
+            painter.setPen(self.selected_pen)
+        else:
+            painter.setPen(self.default_pen)
+        painter.drawPath(path)
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)
@@ -56,12 +90,11 @@ class DataloaderLayer(BaseItem):
     """
 
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/featureInput.png')
+        super().__init__(text='特征输入层')
         self.layer_property = {
             'file_path': '',
             'type': '',
         }
-
 
 """
 Convolution layer, which can be used in CNN or other deep learning model.
@@ -70,7 +103,7 @@ Convolution layer, which can be used in CNN or other deep learning model.
 
 class Convolution1dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/conv1d.png')
+        super().__init__(text='一维卷积层')
         self.layer_property = {
             'in_channels': '',
             'out_channels': '',
@@ -100,7 +133,7 @@ class Convolution1dLayer(BaseItem):
 
 class Convolution2dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/conv2d.png')
+        super().__init__(text='二维卷积层')
         self.layer_property = {
             'in_channels': '',
             'out_channels': '',
@@ -132,7 +165,7 @@ class Convolution2dLayer(BaseItem):
 
 class Convolution3dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/conv3d.png')
+        super().__init__(text='三维卷积层')
         self.layer_property = {
             'in_channels': '',
             'out_channels': '',
@@ -164,7 +197,7 @@ class Convolution3dLayer(BaseItem):
 
 class TransposedConv1dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path="../resources/icons/deep_learning/transposedConv1d.png")
+        super().__init__(text='一维转置卷积层')
         self.layer_property = {
             'in_channels': '',
             'out_channels': '',
@@ -198,7 +231,7 @@ class TransposedConv1dLayer(BaseItem):
 
 class TransposedConv2dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path="../resources/icons/deep_learning/transposedConv2d.png")
+        super().__init__(text='二维转置卷积层')
         self.layer_property = {
             'in_channels': '',
             'out_channels': '',
@@ -232,7 +265,7 @@ class TransposedConv2dLayer(BaseItem):
 
 class TransposedConv3dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/transposedConv3d.png')
+        super().__init__(text='三维转置卷积层')
         self.layer_property = {
             'in_channels': '',
             'out_channels': '',
@@ -271,7 +304,7 @@ Sequence Layer.
 
 class RNNLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/rnn.png')
+        super().__init__(text='循环神经网络层')
         self.layer_property = {
             'input_size': '',
             'hidden_size': '',
@@ -307,7 +340,7 @@ class RNNLayer(BaseItem):
 
 class BiRNNLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/birnn.png')
+        super().__init__(text='双向循环神经网络层')
         self.layer_property = {
             'input_size': '',
             'hidden_size': '',
@@ -343,7 +376,7 @@ class BiRNNLayer(BaseItem):
 
 class LSTMLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/lstm.png')
+        super().__init__(text='长短期记忆网络层')
         self.layer_property = {
             'input_size': '',
             'hidden_size': '',
@@ -379,7 +412,7 @@ class LSTMLayer(BaseItem):
 
 class BiLSTMLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/bilstm.png')
+        super().__init__(text='双向长短期记忆网络层')
         self.layer_property = {
             'input_size': '',
             'hidden_size': '',
@@ -415,7 +448,7 @@ class BiLSTMLayer(BaseItem):
 
 class GRULayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/gru.png')
+        super().__init__(text='门控循环单元网络层')
         self.layer_property = {
             'input_size': '',
             'hidden_size': '',
@@ -450,7 +483,7 @@ class GRULayer(BaseItem):
 
 class BiGRULayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/bigru.png')
+        super().__init__(text='双向门控循环单元网络层')
         self.layer_property = {
             'input_size': '',
             'hidden_size': '',
@@ -485,7 +518,7 @@ class BiGRULayer(BaseItem):
 
 class FlattenLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/flatten.png')
+        super().__init__(text='展平层')
         self.layer_property = {
             'start_dim': '1',
             'end_dim': '-1'
@@ -503,7 +536,7 @@ Pooling layer.
 
 class MaxPool1dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/maxPool1d.png')
+        super().__init__(text='一维最大池化层')
         self.layer_property = {
             'kernel_size': '',
             'stride': '',
@@ -518,7 +551,7 @@ class MaxPool1dLayer(BaseItem):
 
 class MaxPool2dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/maxPool2d.png')
+        super().__init__(text='二维最大池化层')
         self.layer_property = {
             'kernel_size': '',
             'stride': '',
@@ -533,7 +566,7 @@ class MaxPool2dLayer(BaseItem):
 
 class MaxPool3dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/maxPool3d.png')
+        super().__init__(text='三维最大池化层')
         self.layer_property = {
             'kernel_size': '',
             'stride': '',
@@ -548,7 +581,7 @@ class MaxPool3dLayer(BaseItem):
 
 class AvgPool1dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/avgPool1d.png')
+        super().__init__(text='一维平均池化层')
         self.layer_property = {
             'kernel_size': '',
             'stride': '',
@@ -576,7 +609,7 @@ class AvgPool1dLayer(BaseItem):
 
 class AvgPool2dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/avgPool2d.png')
+        super().__init__(text='二维平均池化层')
         self.layer_property = {
             'kernel_size': '',
             'stride': '',
@@ -604,7 +637,7 @@ class AvgPool2dLayer(BaseItem):
 
 class AvgPool3dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/avgPool3d.png')
+        super().__init__(text='三维平均池化层')
         self.layer_property = {
             'kernel_size': '',
             'stride': '',
@@ -632,7 +665,7 @@ class AvgPool3dLayer(BaseItem):
 
 class AdaptiveMaxPool1dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/adaptiveMaxPool1d.png')
+        super().__init__(text='自适应一维最大池化层')
         self.layer_property = {
             'output_size': '',
         }
@@ -643,7 +676,7 @@ class AdaptiveMaxPool1dLayer(BaseItem):
 
 class AdaptiveMaxPool2dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/adaptiveMaxPool2d.png')
+        super().__init__(text='自适应二维最大池化层')
         self.layer_property = {
             'output_size': '',
         }
@@ -654,7 +687,7 @@ class AdaptiveMaxPool2dLayer(BaseItem):
 
 class AdaptiveMaxPool3dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/adaptiveMaxPool3d.png')
+        super().__init__(text='自适应三维最大池化层')
         self.layer_property = {
             'output_size': '',
         }
@@ -665,7 +698,7 @@ class AdaptiveMaxPool3dLayer(BaseItem):
 
 class AdaptiveAvgPool1dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/adaptiveAvgPool1d.png')
+        super().__init__(text='自适应一维平均池化层')
         self.layer_property = {
             'output_size': '',
         }
@@ -676,7 +709,7 @@ class AdaptiveAvgPool1dLayer(BaseItem):
 
 class AdaptiveAvgPool2dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/adaptiveAvgPool2d.png')
+        super().__init__(text='自适应二维平均池化层')
         self.layer_property = {
             'output_size': '',
         }
@@ -687,7 +720,7 @@ class AdaptiveAvgPool2dLayer(BaseItem):
 
 class AdaptiveAvgPool3dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/adaptiveAvgPool3d.png')
+        super().__init__(text='自适应三维平均池化层')
         self.layer_property = {
             'output_size': '',
         }
@@ -698,7 +731,7 @@ class AdaptiveAvgPool3dLayer(BaseItem):
 
 class FractionalMaxPool2dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/fractionalMaxPool2d.png')
+        super().__init__(text='二维分数最大池化层')
         self.layer_property = {
             'kernel_size': '',
             'output_size': '',
@@ -713,7 +746,7 @@ class FractionalMaxPool2dLayer(BaseItem):
 
 class FractionalMaxPool3dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/fractionalMaxPool3d.png')
+        super().__init__(text='三维分数最大池化层')
         self.layer_property = {
             'kernel_size': '',
             'output_size': '',
@@ -728,7 +761,7 @@ class FractionalMaxPool3dLayer(BaseItem):
 
 class LpPool1dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/lpPool1d.png')
+        super().__init__(text='一维Lp池化层')
         self.layer_property = {
             'norm_type': '',
             'kernel_size': '',
@@ -750,7 +783,7 @@ class LpPool1dLayer(BaseItem):
 
 class LpPool2dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/lpPool2d.png')
+        super().__init__(text='二维Lp池化层')
         self.layer_property = {
             'norm_type': '',
             'kernel_size': '',
@@ -776,7 +809,7 @@ Normalization layer. These layers can normalize data, then data can through acti
 
 class BatchNorm1dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/batchNorm1d.png')
+        super().__init__(text='一维批标准化层')
         self.layer_property = {
             'num_features': '',
             'eps': '0.00001',
@@ -797,7 +830,7 @@ class BatchNorm1dLayer(BaseItem):
 
 class BatchNorm2dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/batchNorm2d.png')
+        super().__init__(text='二维批标准化层')
         self.layer_property = {
             'num_features': '',
             'eps': '0.00001',
@@ -818,7 +851,7 @@ class BatchNorm2dLayer(BaseItem):
 
 class BatchNorm3dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/batchNorm3d.png')
+        super().__init__(text='三维批标准化层')
         self.layer_property = {
             'num_features': '',
             'eps': '0.00001',
@@ -839,7 +872,7 @@ class BatchNorm3dLayer(BaseItem):
 
 class LazyBatchNorm1dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/lazyBatchNorm1d.png')
+        super().__init__(text='一维延迟批标准化层')
         self.layer_property = {
             'eps': '0.00001',
             'momentum': '0.1',
@@ -858,7 +891,7 @@ class LazyBatchNorm1dLayer(BaseItem):
 
 class LazyBatchNorm2dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/lazyBatchNorm2d.png')
+        super().__init__(text='二维延迟批标准化层')
         self.layer_property = {
             'eps': '0.00001',
             'momentum': '0.1',
@@ -877,7 +910,7 @@ class LazyBatchNorm2dLayer(BaseItem):
 
 class LazyBatchNorm3dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/lazyBatchNorm3d.png')
+        super().__init__(text='三维延迟批标准化层')
         self.layer_property = {
             'eps': '0.00001',
             'momentum': '0.1',
@@ -896,7 +929,7 @@ class LazyBatchNorm3dLayer(BaseItem):
 
 class InstanceNorm1dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/instanceNorm1d.png')
+        super().__init__(text='一维实例标准化层')
         self.layer_property = {
             'num_features': '',
             'eps': '0.00001',
@@ -918,7 +951,7 @@ class InstanceNorm1dLayer(BaseItem):
 
 class InstanceNorm2dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/instanceNorm2d.png')
+        super().__init__(text='二维实例标准化层')
         self.layer_property = {
             'num_features': '',
             'eps': '0.00001',
@@ -940,7 +973,7 @@ class InstanceNorm2dLayer(BaseItem):
 
 class InstanceNorm3dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/instanceNorm3d.png')
+        super().__init__(text='三维实例标准化层')
         self.layer_property = {
             'num_features': '',
             'eps': '0.00001',
@@ -962,7 +995,7 @@ class InstanceNorm3dLayer(BaseItem):
 
 class LazyInstanceNorm1dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/lazyInstanceNorm1d.png')
+        super().__init__(text='一维延迟实例标准化层')
         self.layer_property = {
             'eps': '0.00001',
             'momentum': '0.1',
@@ -982,7 +1015,7 @@ class LazyInstanceNorm1dLayer(BaseItem):
 
 class LazyInstanceNorm2dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/lazyInstanceNorm2d.png')
+        super().__init__(text='二维延迟实例标准化层')
         self.layer_property = {
             'eps': '0.00001',
             'momentum': '0.1',
@@ -1002,7 +1035,7 @@ class LazyInstanceNorm2dLayer(BaseItem):
 
 class LazyInstanceNorm3dLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/lazyInstanceNorm3d.png')
+        super().__init__(text='三维延迟实例标准化层')
         self.layer_property = {
             'eps': '0.00001',
             'momentum': '0.1',
@@ -1022,7 +1055,7 @@ class LazyInstanceNorm3dLayer(BaseItem):
 
 class LayerNormLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/layerNorm.png')
+        super().__init__(text='层标准化层')
         self.layer_property = {
             'normalized_shape': '',
             'eps': '0.00001',
@@ -1048,7 +1081,7 @@ class LayerNormLayer(BaseItem):
 
 class GroupNormLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/groupNorm.png')
+        super().__init__(text='组标准化层')
         self.layer_property = {
             'num_groups': '',
             'num_channels': '',
@@ -1070,7 +1103,7 @@ class GroupNormLayer(BaseItem):
 
 class LocalResponseNormLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/localResponseNorm.png')
+        super().__init__(text='局部响应标准化层')
         self.layer_property = {
             'size': '',
             'alpha': '0.0001',
@@ -1087,7 +1120,7 @@ class LocalResponseNormLayer(BaseItem):
 
 class SyncBatchNormLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/syncBatchNorm.png')
+        super().__init__(text='同步批标准化层')
         self.layer_property = {
             'num_features': '',
             'eps': '0.00001',
@@ -1114,7 +1147,7 @@ Linear layer
 
 class LinearLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/linear.png')
+        super().__init__(text='全连接层')
         self.layer_property = {
             'in_features': '1',
             'out_features': '1',
@@ -1139,7 +1172,7 @@ to activate value.
 
 class ReluLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/Relu.png')
+        super().__init__(text='Relu')
         self.layer_property = {
             'inplace': 'True'
         }
@@ -1154,7 +1187,7 @@ class ReluLayer(BaseItem):
 
 class LeakyReluLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/LeakyRelu.png')
+        super().__init__(text='Leaky\nRelu')
         self.layer_property = {
             'negative_slope': '0.01',
             'inplace': 'False'
@@ -1171,7 +1204,7 @@ class LeakyReluLayer(BaseItem):
 
 class PreluLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/Prelu.png')
+        super().__init__(text='Prelu')
         self.layer_property = {
             'num_parameters': '1',
             'init': '0.25'
@@ -1184,7 +1217,7 @@ class PreluLayer(BaseItem):
 
 class EluLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/Elu.png')
+        super().__init__(text='Elu')
         self.layer_property = {
             'alpha': '1.0',
             'inplace': 'False'
@@ -1201,7 +1234,7 @@ class EluLayer(BaseItem):
 
 class SeluLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/Selu.png')
+        super().__init__(text='Selu')
         self.layer_property = {
             'inplace': 'False'
         }
@@ -1216,7 +1249,7 @@ class SeluLayer(BaseItem):
 
 class SoftplusLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/Softplus.png')
+        super().__init__(text='Softplus')
         self.layer_property = {
             'beta': '1',
             'threshold': '20',
@@ -1229,7 +1262,7 @@ class SoftplusLayer(BaseItem):
 
 class SoftmaxLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/Softmax.png')
+        super().__init__(text='Softmax')
         self.layer_property = {
             'dim': '0'
         }
@@ -1240,7 +1273,7 @@ class SoftmaxLayer(BaseItem):
 
 class SigmoidLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/Sigmoid.png')
+        super().__init__(text='Sigmoid')
         self.layer_property = {
         }
 
@@ -1250,7 +1283,7 @@ class SigmoidLayer(BaseItem):
 
 class TanhLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/Tanh.png')
+        super().__init__(text='Tanh')
         self.layer_property = {
         }
 
@@ -1260,7 +1293,7 @@ class TanhLayer(BaseItem):
 
 class SoftsignLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/Softsign.png')
+        super().__init__(text='Softsign')
         self.layer_property = {
         }
 
@@ -1281,7 +1314,7 @@ class AddModule(nn.Module):
 
 class AddLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/Add.png')
+        super().__init__(text='Add')
         self.layer_property = {
         }
 
@@ -1297,7 +1330,7 @@ class MulModule(nn.Module):
 
 class MulLayer(BaseItem):
     def __init__(self):
-        super().__init__(icon_path='../resources/icons/deep_learning/Mul.png')
+        super().__init__(text='Mul')
         self.layer_property = {
         }
 

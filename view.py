@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QGraphicsView, QGraphicsItem, QGraphicsPixmapItem, Q
 
 from edge import Edge
 from scene import GraphicScene
-from item import getLayer
+from item import getLayer, BaseItem, TextItem
 
 class DataflowView(QGraphicsView):
     def __init__(self, graphic_scene=None, parent=None):
@@ -48,6 +48,9 @@ class DataflowView(QGraphicsView):
         elif event.key() == Qt.Key_N:
             item = getLayer('linear')
             self.gr_scene.addNode(item)
+        elif event.key() == Qt.Key_C:
+            item = getLayer('convolution1dLayer')
+            self.gr_scene.addNode(item)
 
     def edgeDragStart(self, item):
         self.drag_start_item = item  # 拖拽开始时的图元
@@ -67,14 +70,14 @@ class DataflowView(QGraphicsView):
         self.drag_edge = None
 
     def mousePressEvent(self, event):
-        item = self.getItemAtClick(event)
+        item = self.getBaseItemAtClick(event)
         # 单击鼠标右键删除layer
         if event.button() == Qt.RightButton:
-            if isinstance(item, QGraphicsPixmapItem):
+            if isinstance(item, BaseItem):
                 self.gr_scene.removeNode(item)
         # 按住鼠标左键开始拖拽生成edge
         elif self.edge_enable:
-            if isinstance(item, QGraphicsPixmapItem):
+            if isinstance(item, BaseItem):
                 # 确认起点是图元后，开始拖拽
                 self.edgeDragStart(item)
         else:
@@ -86,9 +89,9 @@ class DataflowView(QGraphicsView):
             try:
                 # 拖拽结束后，关闭连线功能
                 self.edge_enable = False
-                item = self.getItemAtClick(event)
+                item = self.getBaseItemAtClick(event)
                 # 终点图元不能是起点图元
-                if isinstance(item, QGraphicsPixmapItem) and item is not self.drag_start_item:
+                if isinstance(item, BaseItem) and item is not self.drag_start_item:
                     self.edgeDragEnd(item)
                     print("edge create success")
                 else:
@@ -99,10 +102,12 @@ class DataflowView(QGraphicsView):
             except Exception as error:
                 print(error)
                 QMessageBox.warning(self, '提示', '连接失败，请重试！')
-        super().mouseReleaseEvent(event)
+        else:
+            super().mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
         if self.edge_enable and self.drag_edge is not None:
+            # 实时更新edge
             pos = event.pos()
             sc_pos = self.mapToScene(pos)
             self.drag_edge.gr_edge.setEndPosition(sc_pos.x(), sc_pos.y())
@@ -113,8 +118,17 @@ class DataflowView(QGraphicsView):
         area = self.rubberBandRect()
         return self.items(area)  # 返回一个所有选中图元的列表，对此操作即可
 
-    def getItemAtClick(self, event: QEvent) -> 'QGraphicsItem':
+    def getItemAtClick(self, event: QEvent):
         """返回我们点击/释放鼠标按钮的对象"""
         pos = event.pos()
         obj = self.itemAt(pos)
         return obj
+
+    def getBaseItemAtClick(self, event: QEvent) -> BaseItem:
+        pos = event.pos()
+        item = self.itemAt(pos)
+        if isinstance(item, BaseItem):
+            return item
+        elif isinstance(item, TextItem):
+            return item.parentItem()
+        return None

@@ -41,11 +41,61 @@ class GraphicEdge(QGraphicsPathItem):
     # calculate line path
     def calcPath(self):
         path = QPainterPath(QPointF(self.pos_src[0], self.pos_src[1]))  # 起点
+        # 添加弧度效果
+        # 计算两个弧的参数
+        r = min(10, abs(self.pos_dst[0]-self.pos_src[0]) / 10, abs(self.pos_dst[1]-self.pos_src[1]) / 10) # 弧度半径
+        if self.pos_src[0] < self.pos_dst[0]-50:
+             # 计算中间点
+            mid_x = (self.pos_src[0] + self.pos_dst[0]) / 2
+            arc1_x = mid_x - 2 * r
+            arc2_x = mid_x
+            if self.pos_src[1] < self.pos_dst[1]:
+                arc1_y = self.pos_src[1]
+                arc2_y = self.pos_dst[1] - 2 * r
+                arc1_start, arc1_length = 90, -90
+                arc2_start, arc2_length = 180, 90
+            else:
+                arc1_y = self.pos_src[1] - 2 * r
+                arc2_y = self.pos_dst[1]
+                arc1_start, arc1_length = -90, 90
+                arc2_start, arc2_length = 180, -90
+            path.arcTo(arc1_x, arc1_y, r * 2, r * 2, arc1_start, arc1_length)
+            path.arcTo(arc2_x , arc2_y, r * 2, r * 2, arc2_start, arc2_length)
+        else:
+            xm1 = self.pos_src[0] + 30
+            xm2 = self.pos_dst[0] - 30
+            ym = (self.pos_src[1] + self.pos_dst[1]) / 2
+            if self.pos_src[1] < self.pos_dst[1]:
+                if abs(self.pos_src[1] - self.pos_dst[1]) < 60:
+                    ym = self.pos_dst[1] + 60
+                    arc3_x, arc3_y, arc3_start, arc3_length = xm2, ym-2*r, -90,  -90
+                    arc4_x, arc4_y, arc4_start, arc4_length = xm2, self.pos_dst[1], 180, -90
+                else:
+                    arc3_x, arc3_y, arc3_start, arc3_length = xm2, ym, 90,  90
+                    arc4_x, arc4_y, arc4_start, arc4_length = xm2, self.pos_dst[1]-2*r, 180, 90
+                arc1_x, arc1_y, arc1_start, arc1_length = xm1-2*r, self.pos_src[1], 90, -90
+                arc2_x, arc2_y, arc2_start, arc2_length = xm1-2*r, ym-2*r, 0, -90
+            else:
+                if abs(self.pos_src[1] - self.pos_dst[1]) < 60:
+                    ym = self.pos_dst[1] - 60
+                    arc3_x, arc3_y, arc3_start, arc3_length = xm2, ym, 90, 90
+                    arc4_x, arc4_y, arc4_start, arc4_length = xm2, self.pos_dst[1]-2*r, 180, 90
+                else:
+                    arc3_x, arc3_y, arc3_start, arc3_length = xm2, ym-2*r, -90, -90
+                    arc4_x, arc4_y, arc4_start, arc4_length = xm2, self.pos_dst[1], 180, -90
+                arc1_x, arc1_y, arc1_start, arc1_length = xm1-2*r, self.pos_src[1]-2*r, -90, 90
+                arc2_x, arc2_y, arc2_start, arc2_length = xm1-2*r, ym, 0, 90
+                
+
+            path.arcTo(arc1_x, arc1_y, r * 2, r * 2, arc1_start, arc1_length)
+            path.arcTo(arc2_x , arc2_y, r * 2, r * 2, arc2_start, arc2_length)
+            path.arcTo(arc3_x , arc3_y, r * 2, r * 2, arc3_start, arc3_length)
+            path.arcTo(arc4_x , arc4_y, r * 2, r * 2, arc4_start, arc4_length)
         path.lineTo(self.pos_dst[0], self.pos_dst[1])  # 终点
         return path
 
     # override
-    def paint(self, painter, graphics_item, widget=None):
+    def paint(self, painter, option, widget=None):
         self.setPath(self.calcPath())  # 设置路径
         path = self.path()
         if self.edge_wrap.end_item is None:
@@ -57,8 +107,8 @@ class GraphicEdge(QGraphicsPathItem):
         else:
             x1, y1 = self.pos_src
             x2, y2 = self.pos_dst
-            length = 0.5  # 圆点距离终点图元的距离
-            k = math.atan2(y2 - y1, x2 - x1)  # theta
+            length = 1  # 圆点距离终点图元的距离
+            k = 0  # theta
             new_x = x2 - length * math.cos(k)  # 减去线条自身的宽度
             new_y = y2 - length * math.sin(k)
             new_x1 = new_x - 20 * math.cos(k - np.pi / 6)

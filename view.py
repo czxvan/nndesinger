@@ -39,7 +39,22 @@ class DataflowView(QGraphicsView):
         # 设置拖拽模式
         self.setDragMode(self.RubberBandDrag)
         self.setAcceptDrops(True)
-        self.setStyleSheet("border: none;")
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+
+    def wheelEvent(self, event):
+        if event.modifiers() == Qt.ControlModifier:
+            # 缩放视图
+            factor = 1.1
+            if event.angleDelta().y() < 0:
+                factor = 1 / factor
+            self.scale(factor, factor)
+        elif event.modifiers() == Qt.ShiftModifier:
+            # 左右移动视图
+            self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - event.angleDelta().y())
+        else:
+            # 上下移动视图
+            self.verticalScrollBar().setValue(self.verticalScrollBar().value() - event.angleDelta().y())
 
     def keyPressEvent(self, event):
         # 当按下键盘E键时，启动线条功能，再次按下则是关闭

@@ -25,6 +25,11 @@ class MainWindow(QMainWindow):
  
 def demo_run():
     app = QApplication(sys.argv)
+    # Set global fonts
+    font = QFont()
+    font.setFamily("SimHei")
+    font.setPixelSize(14)
+    app.setFont(font)
     demo = MainWindow()
     app.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
     app.setAttribute(Qt.AA_EnableHighDpiScaling, True)

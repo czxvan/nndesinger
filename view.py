@@ -1,12 +1,138 @@
-import math
-
 from PyQt5.QtCore import Qt, QEvent
 from PyQt5.QtGui import QPainter
-from PyQt5.QtWidgets import QGraphicsView, QGraphicsItem, QGraphicsPixmapItem, QMessageBox
+from PyQt5.QtWidgets import QShortcut, QGraphicsView, QPushButton, QWidget, QMessageBox, QVBoxLayout, QScrollArea, QTextEdit, QLabel
+from PyQt5.QtGui import QKeySequence
 
 from edge import Edge
 from scene import GraphicScene
 from item import getLayer, BaseItem, TextItem, EndItem
+
+class ChatBox(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedWidth(850)
+
+        self.label_height = 26
+        self.unit_height = 29
+        self.max_history_height = 300
+
+        self.init_ui()
+
+    def init_ui(self):
+
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(5,5,5,5)
+        self.layout.setSpacing(5)
+
+        # 历史记录区域
+        self.history_scroll = QScrollArea()
+        self.history_scroll.setWidgetResizable(True)
+        self.history_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.history_scroll.setVisible(False)
+
+        self.history_content = QWidget()
+        self.history_layout = QVBoxLayout(self.history_content)
+        self.history_layout.setContentsMargins(0,0,0,0)
+        self.history_layout.setSpacing(3)
+        self.history_layout.setAlignment(Qt.AlignTop)
+        self.history_scroll.setWidget(self.history_content)
+
+        self.layout.addWidget(self.history_scroll)
+
+        # 输入框
+        self.input_box = QTextEdit()
+        self.input_box.setMaximumHeight(100)
+        self.input_box.setPlaceholderText("请输入指令...")
+        self.input_box.textChanged.connect(self.adjust_input_height)
+        self.input_box.keyPressEvent = self.handle_keypress
+        self.adjust_input_height()
+        self.layout.addWidget(self.input_box)
+
+        self.close_button = QPushButton("关闭", self)
+        self.close_button.setFixedWidth(100)
+        self.close_button.clicked.connect(self.close_widget)
+        self.layout.addWidget(self.close_button, alignment=Qt.AlignRight)
+
+        self.setLayout(self.layout)
+
+        self.input_box.setFocus()
+
+        # 设置样式
+        self.setStyleSheet("""
+            QScrollArea {
+                border: 1px solid #175584;
+                border-radius: 5px;
+            }
+            QLabel {
+                padding: 5px;
+            }
+            QTextEdit {
+                border: 1px solid #175584;
+                border-radius: 5px;
+            }
+            QPushButton {
+                background-color: #f1f3f7;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                border: 1px solid #175584;
+            }
+            QPushButton:pressed {
+                border: 1px solid #1d487c;
+            }
+        """)
+
+        self.adjustSize()
+
+    def adjust_input_height(self):
+        doc = self.input_box.document()
+        height = doc.size().height() + 2 * self.input_box.contentsMargins().top() + 2
+        self.input_box.setFixedHeight(min(int(height), 100))
+        self.adjustSize()
+
+    def adjust_history_height(self):
+        count = self.history_layout.count()
+
+        self.history_content.setFixedHeight(count * self.unit_height)
+        self.history_scroll.setFixedHeight(min(count * self.unit_height, self.max_history_height))
+        self.adjustSize()
+
+    def handle_keypress(self, event):
+        if event.key() == Qt.Key_Return and not (event.modifiers() & Qt.ShiftModifier):
+            self.submit_message()
+            self.input_box.setFocus()
+        else:
+            # 调用原始的 keyPressEvent
+            QTextEdit.keyPressEvent(self.input_box, event)
+
+    def submit_message(self):
+        text = self.input_box.toPlainText().strip()
+        if text:
+            # 添加消息到历史记录
+            label = QLabel(text)
+            label.setWordWrap(True)
+            label.setFixedHeight(self.label_height)
+            self.history_layout.addWidget(label)
+
+            # 当添加第一条消息时显示历史区域
+            if self.history_layout.count() == 1:
+                self.history_scroll.setVisible(True)
+
+            # 调整历史记录高度
+            self.adjust_history_height()
+
+            # 滚轮滚动到底部
+            self.history_scroll.verticalScrollBar().setValue(self.history_scroll.verticalScrollBar().maximum())
+
+            # 清空输入框
+            self.input_box.clear()
+
+    def close_widget(self):
+        self.setParent(None)
+
+    def get_prompt(self):
+        return self.input_box.text()
+
 
 class DataflowView(QGraphicsView):
     def __init__(self, graphic_scene=None, parent=None):
@@ -19,8 +145,20 @@ class DataflowView(QGraphicsView):
             self.gr_scene = graphic_scene  # 将scene传入此处托管，方便在view中维护
         else:
             self.gr_scene = GraphicScene()
-        self.parent = parent
+
         self.initUI()
+
+        self.shortcut = QShortcut(QKeySequence("Ctrl+I"), self)
+        self.shortcut.activated.connect(self.show_chatbox)
+        self.chatbox = None
+
+    def show_chatbox(self):
+        if self.chatbox is not None and self.chatbox.parent() is None:
+            self.chatbox = None
+
+        if self.chatbox is None:
+            self.chatbox = ChatBox(self)
+            self.chatbox.show()
 
     def initUI(self):
         self.setScene(self.gr_scene)
@@ -59,7 +197,7 @@ class DataflowView(QGraphicsView):
     def keyPressEvent(self, event):
         # 当按下键盘E键时，启动线条功能，再次按下则是关闭
         if event.key() == Qt.Key_E:
-            self.edge_enable = ~self.edge_enable
+            self.edge_enable = not self.edge_enable
         elif event.key() == Qt.Key_N:
             item = getLayer('linear')
             self.gr_scene.addNode(item)
